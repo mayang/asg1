@@ -19,7 +19,7 @@ public class ImageReader implements MouseListener, MouseMotionListener
    		
    		//int width = 960;
    		//int height = 540;
-   		//String fileName = "./image1.rgb";
+   		//String fileName = "../image1.rgb";
    		
    		ImageReader ir = new ImageReader(width, height, fileName);
    }
@@ -74,6 +74,8 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	    JLabel label = new JLabel(new ImageIcon(img));
 	    label.setPreferredSize(new Dimension(width,height));
 	    frame.getContentPane().add(label, BorderLayout.CENTER);
+	    label.addMouseListener(this);
+	    label.addMouseMotionListener(this);
 
 	    // Bottons
 		JPanel buttonPanel = new JPanel();
@@ -118,7 +120,7 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	@Override
 	public void mouseClicked(MouseEvent arg0) {
 		// TODO Auto-generated method stub
-		
+		//System.out.println(arg0.getX() + " and " + arg0.getY());
 	}
 
 	@Override
@@ -154,7 +156,7 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	@Override
 	public void mouseMoved(MouseEvent arg0) {
 		// TODO Auto-generated method stub
-		
+		//System.out.println("Moving");
 	} 
 	
 	class MyButton extends JButton {

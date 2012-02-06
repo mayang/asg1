@@ -31,11 +31,18 @@ public class ImageReader implements MouseListener, MouseMotionListener
    		ImageReader ir = new ImageReader(width, height, scale, fileName);
    }
 
-   public static BufferedImage img;
-   public static BufferedImage tiles[];
-   public static JFrame frame;
-   public static int wTiles;
-   public static int hTiles;
+   public static JPanel cards; // use card layout 
+   // names of "cards"
+   final static String ORIGINAL = "ORIGINAL";
+   final static String TILED = "TILED";
+   final static String PUZZLE = "PUZZLE";
+   
+   
+   public static BufferedImage img; // image being loaded in
+   public static BufferedImage tiles[]; // image divided into tiles
+   public static JFrame frame; // frame for UI
+   public static int wTiles; // number of columns
+   public static int hTiles; // number of rows
    
    public ImageReader(int width, int height, double scale, String fileName)
    {
@@ -82,10 +89,9 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	    }
 	    
 	    
-	    // scale image
-	    BufferedImage scaledImage; 
+	    // scale image 
 	    if (scale != 1.0) {
-	    	scaledImage = scaleImage(width, height, scale);
+	    	BufferedImage scaledImage = scaleImage(width, height, scale);
 	    	img = scaledImage;
 		    double scaledW = width * scale;
 		    double scaledH = height * scale;
@@ -101,16 +107,17 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	    System.out.println(hTiles);
 	    
 	    
-	  // splitImage(width, height);
+	   tiles = splitImage();
 	    
 	    // Use a label to display the image
 	    frame = new JFrame();
 	    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);	
-	    JLabel label = new JLabel(new ImageIcon(img));
-	    label.setPreferredSize(new Dimension(width,height));
-	    frame.getContentPane().add(label, BorderLayout.CENTER);
-	    label.addMouseListener(this);
-	    label.addMouseMotionListener(this);
+//	    JLabel label = new JLabel(new ImageIcon(img));
+//	    label.setPreferredSize(new Dimension(width,height));
+//	    frame.getContentPane().add(label, BorderLayout.CENTER);
+//	    label.addMouseListener(this);
+//	    label.addMouseMotionListener(this);
+	    makePanes(frame.getContentPane());
 
 	    // Buttons
 		JPanel buttonPanel = new JPanel();
@@ -132,6 +139,41 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	    frame.pack();
 	    frame.setVisible(true); 	
    }
+   
+   public void makePanes(Container pane) {
+	   
+	   cards = new JPanel(new CardLayout());
+	   
+	   // make original image panel
+	   JPanel original = new JPanel();
+	   JLabel label = new JLabel(new ImageIcon(img));
+	   label.setPreferredSize(new Dimension(img.getWidth(), img.getHeight()));
+	   original.add(label, BorderLayout.CENTER);
+	   cards.add(original, ORIGINAL);
+	   
+	   // tiled image panel, temporary testing
+	   JPanel tiled = new JPanel();
+	   for (int i = 0; i < tiles.length; ++i) {
+			   label = new JLabel(new ImageIcon(tiles[i]));
+			   label.setPreferredSize(new Dimension(tiles[i].getWidth(), tiles[i].getHeight()));
+			   tiled.add(label, BorderLayout.CENTER);
+			   label.addMouseListener(this);
+			   label.addMouseMotionListener(this);   
+		   }
+//	   label = new JLabel(new ImageIcon(tiles[1]));
+//	   label.setPreferredSize(new Dimension(tiles[1].getWidth(), tiles[1].getHeight()));
+//	   tiled.add(label, BorderLayout.CENTER);
+//	   label.addMouseListener(this);
+//	   label.addMouseMotionListener(this);
+	   cards.add(tiled, TILED);
+
+	   
+	   pane.add(cards, BorderLayout.CENTER); // add to main pane
+	   
+	   
+	   //frame.getContentPane().add(label, BorderLayout.CENTER);
+   }
+   
    
    // Function calls
    public BufferedImage scaleImage(int oWidth, int oHeight, double scale ) {
@@ -203,17 +245,19 @@ public class ImageReader implements MouseListener, MouseMotionListener
    
 	public void buttonPressed(String name)
 	{
+		CardLayout c = (CardLayout) (cards.getLayout());
 		if (name.equals("Split"))
 		{
 			System.out.println("Split");
-			tiles = splitImage();
-			showSplitTiles();
+			
 		} else if (name.equals("Initialize"))
 		{
-			//System.out.println("Initialize");
+			System.out.println("Initialize");
+			c.show(cards, TILED);
 		} else if (name.equals("Reset"))
 		{
-			//System.out.println("Reset");
+			System.out.println("Reset");
+			c.show(cards, ORIGINAL);
 		} else if (name.equals("Close"))
 		{
 			//System.out.println("Close");

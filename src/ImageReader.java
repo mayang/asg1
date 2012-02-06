@@ -8,34 +8,39 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.*;
 import java.io.*;
 import javax.swing.*;
-
+//import javax.media.jai.TiledImage;
 
 
 public class ImageReader implements MouseListener, MouseMotionListener 
 {  
-	
-	
+
    public static void main(String[] args) 
    {
 	   	String fileName = args[0];
-   		//int width = Integer.parseInt(args[1]);
-   		//int height = Integer.parseInt(args[2]);
+   		wTiles = Integer.parseInt(args[1]); // number of columns
+   		hTiles = Integer.parseInt(args[2]); // number of rows
    		double scale = 1.0;
    		if (args.length > 3) {
    			scale = Double.parseDouble(args[3]);
    		}
    		
-   		int width = 960;
+   		int width = 960; // get this code wise later
    		int height = 540;
    		//String fileName = "../image1.rgb";
    		
    		ImageReader ir = new ImageReader(width, height, scale, fileName);
    }
+
+   public static BufferedImage img;
+   public static BufferedImage tiles[];
+   public static JFrame frame;
+   public static int wTiles;
+   public static int hTiles;
    
    public ImageReader(int width, int height, double scale, String fileName)
    {
 	
-	    BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+	    img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 	
 	    //Reading File
 	    try {
@@ -76,20 +81,30 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	      e.printStackTrace();
 	    }
 	    
-	    // make a graphics object
-	    Graphics2D graphics_img = img.createGraphics();
 	    
-	    BufferedImage scaledImage;
 	    // scale image
+	    BufferedImage scaledImage; 
 	    if (scale != 1.0) {
-	    //	graphics_img.scale(scale, scale);
-	    	scaledImage = scaleImage(img, width, height, scale);
+	    	scaledImage = scaleImage(width, height, scale);
 	    	img = scaledImage;
+		    double scaledW = width * scale;
+		    double scaledH = height * scale;
+		    width = (int) scaledW;
+		    height = (int) scaledH;
 	    }
 	    
+	    System.out.println("image dimensions");
+	    System.out.println(width);
+	    System.out.println(height);
+	    System.out.println("number of tiles");
+	    System.out.println(wTiles);
+	    System.out.println(hTiles);
+	    
+	    
+	  // splitImage(width, height);
 	    
 	    // Use a label to display the image
-	    JFrame frame = new JFrame();
+	    frame = new JFrame();
 	    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);	
 	    JLabel label = new JLabel(new ImageIcon(img));
 	    label.setPreferredSize(new Dimension(width,height));
@@ -119,7 +134,7 @@ public class ImageReader implements MouseListener, MouseMotionListener
    }
    
    // Function calls
-   public BufferedImage scaleImage(BufferedImage orig, int oWidth, int oHeight, double scale ) {
+   public BufferedImage scaleImage(int oWidth, int oHeight, double scale ) {
 	   double newW = oWidth * scale;
 	   double newH = oHeight * scale;
 	   BufferedImage scaledImg = new BufferedImage((int) newW, (int) newH, BufferedImage.TYPE_INT_RGB);
@@ -129,18 +144,70 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	   gImg.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 	   gImg.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
    
-	   gImg.drawImage(orig, 0, 0, (int) newW, (int) newH, null);
+	   gImg.drawImage(img, 0, 0, (int) newW, (int) newH, null);
 	   gImg.dispose();
 	   
 	   return scaledImg;
    }
    
+   public BufferedImage[] splitImage() {
+	   int w = img.getWidth();
+	   int h = img.getHeight();
+	   
+	   BufferedImage mtiles[] = new BufferedImage[wTiles * hTiles];
+	   
+	   // dimensions of each tile
+	   int tileW = w / wTiles;
+	   int tileH = h / hTiles;
+	   
+	   System.out.println("tile dimensions");
+	   System.out.println(tileW);
+	   System.out.println(tileH);
+	   
+	  int i = 0; // index for tiles array
+	   for (int y = 0; y < hTiles; ++y) {
+		   for (int x = 0; x < wTiles; ++x) {
+			   mtiles[i] = new BufferedImage(tileW, tileH, BufferedImage.TYPE_INT_RGB);
+			   
+			   Graphics2D gTile = mtiles[i].createGraphics();
+			   gTile.drawImage(img, 0, 0, tileW, tileH, 
+					   x * tileW, y * tileH, x * tileW + tileW, y * tileH + tileH, null);
+			   gTile.dispose();
+			  //tiles[i] = img.getSubimage(x * tileW, y * tileH, x * tileW + tileW, y * tileH + tileH);
+			   
+			   ++i; // increment i
+		   }
+	   }
+   
+	   return mtiles;
+   }
+   
+   public void showSplitTiles( ) {
+	   frame.getContentPane().removeAll(); // clear image?
+	   
+	   // get width & height of a tile
+	   int w = tiles[0].getWidth();
+	   int h = tiles[0].getHeight();
+	   
+	   // draw tiles
+	   int i = 0;
+	   for (int y = 0; y < hTiles; ++y) {
+		   for (int x = 0; x < wTiles; ++x) {
+			   JLabel label = new JLabel(new ImageIcon(tiles[i]));
+			   label.setPreferredSize(new Dimension(w, h));
+			   
+			   ++i;
+		   }
+	   }
+   }
    
 	public void buttonPressed(String name)
 	{
 		if (name.equals("Split"))
 		{
-			//System.out.println("Split");
+			System.out.println("Split");
+			tiles = splitImage();
+			showSplitTiles();
 		} else if (name.equals("Initialize"))
 		{
 			//System.out.println("Initialize");

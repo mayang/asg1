@@ -153,10 +153,12 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	   
 	   // tiled image panel, temporary testing
 	   JPanel tiled = new JPanel();
+	   GridLayout tiledLayout = new GridLayout(hTiles, wTiles, 5, 5);
+	   tiled.setLayout(tiledLayout);
 	   for (int i = 0; i < tiles.length; ++i) {
 			   label = new JLabel(new ImageIcon(tiles[i]));
 			   label.setPreferredSize(new Dimension(tiles[i].getWidth(), tiles[i].getHeight()));
-			   tiled.add(label, BorderLayout.CENTER);
+			   tiled.add(label);
 			   label.addMouseListener(this);
 			   label.addMouseMotionListener(this);   
 		   }

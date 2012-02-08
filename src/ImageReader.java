@@ -4,7 +4,6 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
-import java.awt.geom.AffineTransform;
 import java.awt.image.*;
 import java.io.*;
 import java.util.Arrays;
@@ -12,7 +11,6 @@ import java.util.Collections;
 import java.util.Random;
 
 import javax.swing.*;
-//import javax.media.jai.TiledImage;
 
 
 public class ImageReader implements MouseListener, MouseMotionListener 
@@ -43,10 +41,14 @@ public class ImageReader implements MouseListener, MouseMotionListener
    
    
    public static BufferedImage img; // image being loaded in
+   public static BufferedImage blankTile; // blank image
    public static BufferedImage tiles[]; // image divided into tiles
+   public static CardLayout c;
    public static JFrame frame; // frame for UI
+   public static JPanel puzzle;
    public static int wTiles; // number of columns
    public static int hTiles; // number of rows
+   public static int blankI; // index of blank tile
    
    public ImageReader(int width, int height, double scale, String fileName)
    {
@@ -103,13 +105,13 @@ public class ImageReader implements MouseListener, MouseMotionListener
 		    height = (int) scaledH;
 	    }
 	    
+	    // Debuggin'
 	    System.out.println("image dimensions");
 	    System.out.println(width);
 	    System.out.println(height);
 	    System.out.println("number of tiles");
 	    System.out.println(wTiles);
 	    System.out.println(hTiles);
-	    
 	    
 	   tiles = splitImage();
 	    
@@ -205,7 +207,8 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	   // dimensions of each tile
 	   int tileW = w / wTiles;
 	   int tileH = h / hTiles;
-	   
+
+	   // Debuggin'
 	   System.out.println("tile dimensions");
 	   System.out.println(tileW);
 	   System.out.println(tileH);
@@ -230,33 +233,30 @@ public class ImageReader implements MouseListener, MouseMotionListener
     
    // jumble image
    public void initPuzzle() {
-	   
 	   // shuffle!
 	   Collections.shuffle(Arrays.asList(tiles));
 	   
-	   // replace one with blank tile
-	   BufferedImage blankTile = new BufferedImage(tiles[0].getWidth(), 
+	   // Make blank white tile
+	   blankTile = new BufferedImage(tiles[0].getWidth(), 
 			   tiles[0].getHeight(), BufferedImage.TYPE_INT_RGB);
-	   // colour it white or transparent?
 	   for (int y = 0; y < blankTile.getHeight(); ++y) {
 		   for (int x = 0; x < blankTile.getWidth(); ++x) {
 			   blankTile.setRGB(x, y, 0x00FFFFFF);
 		   }
 	   }
-	   
-	   
-	   
-	   // get a random index
+	    
+	   // get a random index 
 	   Random rand = new Random();
-	   int blankI = rand.nextInt(tiles.length);
+	   blankI = rand.nextInt(tiles.length);
 	   //tiles[blankI] = blankTile;	   
 	   
 	   // make pane!
-	   JPanel puzzle = new JPanel();
+	   puzzle = new JPanel();
 	   GridLayout tiledLayout = new GridLayout(hTiles, wTiles, 5, 5);
 	   puzzle.setLayout(tiledLayout);
 	   for (int i = 0; i < tiles.length; ++i) {
-		   		JLabel label;
+		   JLabel label;
+		   // draw blank tile
 		   if (i == blankI) {
 			   label = new JLabel(new ImageIcon(blankTile));
 			   label.setPreferredSize(new Dimension(blankTile.getWidth(), blankTile.getHeight()));
@@ -264,17 +264,84 @@ public class ImageReader implements MouseListener, MouseMotionListener
 			   label = new JLabel(new ImageIcon(tiles[i]));
 			   label.setPreferredSize(new Dimension(tiles[i].getWidth(), tiles[i].getHeight()));
 		   }
-			   puzzle.add(label);
-			   label.addMouseListener(this);
-			   label.addMouseMotionListener(this);   
+		   puzzle.add(label);
+//		   label.addMouseListener(this);
+//		   label.addMouseMotionListener(this);   
 	   }
+	   puzzle.addMouseListener(this);
+	   puzzle.addMouseMotionListener(this);
 	   cards.add(puzzle, PUZZLE);
    }
    
+   // Move tiles
+   public void moveTiles(int mX, int mY) {
+	   /// get tile that was clicked
+	   int x = mX / tiles[0].getWidth();
+	   int y = mY / tiles[0].getHeight();
+	   System.out.println("x:" + x);
+	   System.out.println("y:" + y);
+	   int mIndex = (y * wTiles) + x;
+	   
+	   System.out.println("blank" + blankI);
+	   System.out.println("tile" + mIndex);
+	   
+	   // check if tile is movable (next to the blank tile)
+	   // possible indexes
+	   int left = -1, right = -1, above = -1, below = -1;
+	   if (blankI % 4 != 0) { // there can be a tile on the left
+		   left = blankI - 1;
+	   }
+	   if ((blankI + 1) % 4 != 0) { // there can be a tile on the right!
+		   right = blankI + 1;
+	   }
+	   if ((blankI - wTiles) >= 0) { // there can be a tile above!
+		   above = blankI - wTiles;
+	   }
+	   if ((blankI + wTiles) < tiles.length) { // there can be a tile below!
+		   below = blankI + wTiles;
+	   }
+	   
+	   // is this tile that was clicked on a valid tile to move?
+	   if (mIndex == left || mIndex == right || mIndex == above || mIndex == below) { 
+		   // move the tile
+		   swapTiles(mIndex);
+		   System.out.println("new blank:" + blankI);
+		   
+		   // refresh panel?
+		   puzzle.removeAll();
+		   // re-add the images 
+		   GridLayout tiledLayout = new GridLayout(hTiles, wTiles, 5, 5);
+		   puzzle.setLayout(tiledLayout);
+		   for (int i = 0; i < tiles.length; ++i) {
+			   JLabel label;
+			   // draw blank tile
+			   if (i == blankI) {
+				   label = new JLabel(new ImageIcon(blankTile));
+				   label.setPreferredSize(new Dimension(blankTile.getWidth(), blankTile.getHeight()));
+			   } else {
+				   label = new JLabel(new ImageIcon(tiles[i]));
+				   label.setPreferredSize(new Dimension(tiles[i].getWidth(), tiles[i].getHeight()));
+			   }
+			   puzzle.add(label); 
+		   }
+		   puzzle.revalidate();
+		   puzzle.repaint();
+		   //puzzle.updateUI();
+		   puzzle.addMouseListener(this);
+		   puzzle.addMouseMotionListener(this);   
+	   } 
+	   
+   }
+   public void swapTiles(int index) {
+	   BufferedImage temp = tiles[blankI];
+	   tiles[blankI] = tiles[index];
+	   tiles[index] = temp;
+	   blankI = index;
+   }
    
 	public void buttonPressed(String name)
 	{
-		CardLayout c = (CardLayout) (cards.getLayout());
+		c = (CardLayout) (cards.getLayout());
 		if (name.equals("Split"))
 		{
 			System.out.println("Split");
@@ -299,6 +366,7 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	public void mouseClicked(MouseEvent arg0) {
 		// TODO Auto-generated method stub
 		System.out.println(arg0.getX() + " and " + arg0.getY());
+		moveTiles(arg0.getX(), arg0.getY());
 	}
 
 	@Override

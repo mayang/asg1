@@ -26,13 +26,23 @@ public class ImageReader implements MouseListener, MouseMotionListener
    			scale = Double.parseDouble(args[3]);
    		}
    		
-   		int width = 960; // get this code wise later
+   		int width = 960; // get this code wise later?
    		int height = 540;
    		//String fileName = "../image1.rgb";
    		
    		ImageReader ir = new ImageReader(width, height, scale, fileName);
    }
 
+   // stores section of image where tile comes from
+   class Tile {
+	   int width; // width of tile
+	   int height; // height of tile
+	   int leftCornerX; // x index of left Corner of main image section
+	   int leftCornerY; // y index of left Corner of main image section
+	   int rightCornerX; // x index of right corner of main image section
+	   int rightCornerY; // y index of right corner of main image section
+   }
+   
    public static JPanel cards; // use card layout 
    // names of "cards"
    final static String ORIGINAL = "ORIGINAL";
@@ -41,8 +51,10 @@ public class ImageReader implements MouseListener, MouseMotionListener
    
    
    public static BufferedImage img; // image being loaded in
+   public static BufferedImage frames[]; // frames 
    public static BufferedImage blankTile; // blank image
-   public static BufferedImage tiles[]; // image divided into tiles
+   //public static BufferedImage tiles[]; // image divided into tiles
+   public static Tile tiles[]; // tiles of images
    public static CardLayout c;
    public static JFrame frame; // frame for UI
    public static JPanel puzzle;
@@ -63,29 +75,42 @@ public class ImageReader implements MouseListener, MouseMotionListener
 		    long len = file.length();
 		    byte[] bytes = new byte[(int)len];
 		    
+		    System.out.println("file length:"+ len);
+		    
 		    int offset = 0;
 	        int numRead = 0;
 	        while (offset < bytes.length && (numRead=is.read(bytes, offset, bytes.length-offset)) >= 0) {
 	            offset += numRead;
 	        }
 	    
-	    		
-	    	int ind = 0;
-			for(int y = 0; y < height; y++){
-		
-				for(int x = 0; x < width; x++){
-			 
-					byte a = 0;
-					byte r = bytes[ind];
-					byte g = bytes[ind+height*width];
-					byte b = bytes[ind+height*width*2]; 
-					
-					int pix = 0xff000000 | ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
-					//int pix = ((a << 24) + (r << 16) + (g << 8) + b);
-					img.setRGB(x,y,pix);
-					ind++;
+	    	// if file longer then height*width*3 or whatever the length is then it is a video!	
+	    	// len = 1555200 for single picture
+	        int frameCount = 1;
+	        // this is a video!
+	        if (len > 1555200) {
+	        	frameCount = 10;
+	        }
+	        frames = new BufferedImage[frameCount];
+	        
+	        int ind = 0;
+	        // do this for each frame!
+	       // for (int f = 0; f < frameCount; ++f) {
+	        	for(int y = 0; y < height; y++){
+					for(int x = 0; x < width; x++){
+				 
+						byte a = 0;
+						byte r = bytes[ind];
+						byte g = bytes[ind+height*width];
+						byte b = bytes[ind+height*width*2]; 
+						
+						int pix = 0xff000000 | ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
+						//int pix = ((a << 24) + (r << 16) + (g << 8) + b);
+						img.setRGB(x,y,pix);
+						ind++;
+					}
 				}
-			}
+				//		frames[f] = img; 
+	        //}
 			
 			
 	    } catch (FileNotFoundException e) {
@@ -118,11 +143,7 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	    // Use a label to display the image
 	    frame = new JFrame();
 	    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);	
-//	    JLabel label = new JLabel(new ImageIcon(img));
-//	    label.setPreferredSize(new Dimension(width,height));
-//	    frame.getContentPane().add(label, BorderLayout.CENTER);
-//	    label.addMouseListener(this);
-//	    label.addMouseMotionListener(this);
+
 	    makePanes(frame.getContentPane());
 
 	    // Buttons
@@ -162,11 +183,16 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	   GridLayout tiledLayout = new GridLayout(hTiles, wTiles, 5, 5);
 	   tiled.setLayout(tiledLayout);
 	   for (int i = 0; i < tiles.length; ++i) {
-			   label = new JLabel(new ImageIcon(tiles[i]));
-			   label.setPreferredSize(new Dimension(tiles[i].getWidth(), tiles[i].getHeight()));
-			   tiled.add(label);
-//			   label.addMouseListener(this);
-//			   label.addMouseMotionListener(this);   
+		   BufferedImage tile = new BufferedImage(tiles[i].width, tiles[i].height, BufferedImage.TYPE_INT_RGB);
+		   
+		   Graphics2D gTile = tile.createGraphics();
+		   gTile.drawImage(img, 0, 0, tiles[i].width, tiles[i].height, 
+				   tiles[i].leftCornerX, tiles[i].leftCornerY,
+				   tiles[i].rightCornerX, tiles[i].rightCornerY, null);
+		   gTile.dispose();		   
+		   label = new JLabel(new ImageIcon(tile));
+		   label.setPreferredSize(new Dimension(tile.getWidth(), tile.getHeight()));
+		   tiled.add(label);   
 	   }
 	   tiled.addMouseListener(this);
 	   tiled.addMouseMotionListener(this);
@@ -175,8 +201,7 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	   
 	   pane.add(cards, BorderLayout.CENTER); // add to main pane
 	   
-	   
-	   //frame.getContentPane().add(label, BorderLayout.CENTER);
+
    }
    
    
@@ -198,11 +223,13 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	   return scaledImg;
    }
    
-   public BufferedImage[] splitImage() {
+   // split image into tiles
+   public Tile[] splitImage() {
 	   int w = img.getWidth();
 	   int h = img.getHeight();
 	   
-	   BufferedImage mtiles[] = new BufferedImage[wTiles * hTiles];
+	   //BufferedImage mtiles[] = new BufferedImage[wTiles * hTiles];
+	   Tile mTiles[] = new Tile[wTiles * hTiles];
 	   
 	   // dimensions of each tile
 	   int tileW = w / wTiles;
@@ -216,19 +243,26 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	  int i = 0; // index for tiles array
 	   for (int y = 0; y < hTiles; ++y) {
 		   for (int x = 0; x < wTiles; ++x) {
-			   mtiles[i] = new BufferedImage(tileW, tileH, BufferedImage.TYPE_INT_RGB);
-			   
-			   Graphics2D gTile = mtiles[i].createGraphics();
-			   gTile.drawImage(img, 0, 0, tileW, tileH, 
-					   x * tileW, y * tileH, x * tileW + tileW, y * tileH + tileH, null);
-			   gTile.dispose();
-			  //tiles[i] = img.getSubimage(x * tileW, y * tileH, x * tileW + tileW, y * tileH + tileH);
+			   mTiles[i] = new Tile();
+			   mTiles[i].width = tileW;
+			   mTiles[i].height = tileH;
+			   mTiles[i].leftCornerX = x * tileW;
+			   mTiles[i].leftCornerY = y * tileH;
+			   mTiles[i].rightCornerX = x * tileW + tileW;
+			   mTiles[i].rightCornerY = y * tileH + tileH;
+//			   mtiles[i] = new BufferedImage(tileW, tileH, BufferedImage.TYPE_INT_RGB);
+//			   
+//			   Graphics2D gTile = mtiles[i].createGraphics();
+//			   gTile.drawImage(img, 0, 0, tileW, tileH, 
+//					   x * tileW, y * tileH, x * tileW + tileW, y * tileH + tileH, null);
+//			   gTile.dispose();
+			//  mtiles[i] = img.getSubimage(x * tileW, y * tileH, x * tileW + tileW, y * tileH + tileH);
 			   
 			   ++i; // increment i
 		   }
 	   }
    
-	   return mtiles;
+	   return mTiles;
    }
     
    // jumble image
@@ -237,8 +271,8 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	   Collections.shuffle(Arrays.asList(tiles));
 	   
 	   // Make blank white tile
-	   blankTile = new BufferedImage(tiles[0].getWidth(), 
-			   tiles[0].getHeight(), BufferedImage.TYPE_INT_RGB);
+	   blankTile = new BufferedImage(tiles[0].width, 
+			   tiles[0].height, BufferedImage.TYPE_INT_RGB);
 	   for (int y = 0; y < blankTile.getHeight(); ++y) {
 		   for (int x = 0; x < blankTile.getWidth(); ++x) {
 			   blankTile.setRGB(x, y, 0x00FFFFFF);
@@ -261,8 +295,16 @@ public class ImageReader implements MouseListener, MouseMotionListener
 			   label = new JLabel(new ImageIcon(blankTile));
 			   label.setPreferredSize(new Dimension(blankTile.getWidth(), blankTile.getHeight()));
 		   } else {
-			   label = new JLabel(new ImageIcon(tiles[i]));
-			   label.setPreferredSize(new Dimension(tiles[i].getWidth(), tiles[i].getHeight()));
+			   BufferedImage piece = new BufferedImage(tiles[i].width, tiles[i].height, BufferedImage.TYPE_INT_RGB);
+			   
+			   Graphics2D gTile = piece.createGraphics();
+			   gTile.drawImage(img, 0, 0, tiles[i].width, tiles[i].height, 
+					   tiles[i].leftCornerX, tiles[i].leftCornerY,
+					   tiles[i].rightCornerX, tiles[i].rightCornerY, null);
+			   gTile.dispose();
+			   
+			   label = new JLabel(new ImageIcon(piece));
+			   label.setPreferredSize(new Dimension(piece.getWidth(), piece.getHeight()));
 		   }
 		   puzzle.add(label);
 //		   label.addMouseListener(this);
@@ -276,8 +318,8 @@ public class ImageReader implements MouseListener, MouseMotionListener
    // Move tiles
    public void moveTiles(int mX, int mY) {
 	   /// get tile that was clicked
-	   int x = mX / tiles[0].getWidth();
-	   int y = mY / tiles[0].getHeight();
+	   int x = mX / tiles[0].width;
+	   int y = mY / tiles[0].height;
 	   System.out.println("x:" + x);
 	   System.out.println("y:" + y);
 	   int mIndex = (y * wTiles) + x;
@@ -314,13 +356,21 @@ public class ImageReader implements MouseListener, MouseMotionListener
 		   puzzle.setLayout(tiledLayout);
 		   for (int i = 0; i < tiles.length; ++i) {
 			   JLabel label;
-			   // draw blank tile
+			   // draw blank tile if index is blank tile index
 			   if (i == blankI) {
 				   label = new JLabel(new ImageIcon(blankTile));
 				   label.setPreferredSize(new Dimension(blankTile.getWidth(), blankTile.getHeight()));
 			   } else {
-				   label = new JLabel(new ImageIcon(tiles[i]));
-				   label.setPreferredSize(new Dimension(tiles[i].getWidth(), tiles[i].getHeight()));
+				   BufferedImage piece = new BufferedImage(tiles[i].width, tiles[i].height, BufferedImage.TYPE_INT_RGB);
+				   
+				   Graphics2D gTile = piece.createGraphics();
+				   gTile.drawImage(img, 0, 0, tiles[i].width, tiles[i].height, 
+						   tiles[i].leftCornerX, tiles[i].leftCornerY,
+						   tiles[i].rightCornerX, tiles[i].rightCornerY, null);
+				   gTile.dispose();
+				   
+				   label = new JLabel(new ImageIcon(piece));
+				   label.setPreferredSize(new Dimension(piece.getWidth(), piece.getHeight()));
 			   }
 			   puzzle.add(label); 
 		   }
@@ -333,7 +383,7 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	   
    }
    public void swapTiles(int index) {
-	   BufferedImage temp = tiles[blankI];
+	   Tile temp = tiles[blankI];
 	   tiles[blankI] = tiles[index];
 	   tiles[index] = temp;
 	   blankI = index;

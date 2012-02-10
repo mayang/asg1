@@ -33,6 +33,9 @@ public class ImageReader implements MouseListener, MouseMotionListener
    		//String fileName = "../image1.rgb";
    		
    		ImageReader ir = new ImageReader(width, height, scale, fileName);
+//	    if (vidFlag) {
+//	    	ir.fps.start();
+//	    }
    }
 
    // stores section of image where tile comes from
@@ -69,6 +72,7 @@ public class ImageReader implements MouseListener, MouseMotionListener
    public static boolean vidFlag; 
    public static int frameCount;
    public static int currFrame = 0;
+   public static byte[] bytes;
    
    Timer fps;
    
@@ -83,9 +87,11 @@ public class ImageReader implements MouseListener, MouseMotionListener
 		    InputStream is = new FileInputStream(file);
 	
 		    long len = file.length();
-		    byte[] bytes = new byte[1555200];
+		    bytes = new byte[(int) len];
+		    
 		    
 		    System.out.println("file length:"+ len);
+		    System.out.println((int) len);
 		    
 		    int offset = 0;
 	        int numRead = 0;
@@ -99,7 +105,7 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	        vidFlag = false;
 	        // this is a video!
 	        if (len > 1555200) {
-	        	frameCount = 100;
+	        	//frameCount = 100;
 	        	vidFlag = true;
 	        	fps = new Timer(100, new refreshFrame());
 	        	fps.setInitialDelay(100);
@@ -109,10 +115,11 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	        int ind = 0;
 	        // do this for each frame!
 	        for (int f = 0; f < frameCount; ++f) {
-	        	ind = 0;
+	        	//ind = 0;
 	        	for(int y = 0; y < height; y++){
 					for(int x = 0; x < width; x++){
 						//System.out.println("i:" + ind);
+						//img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 						byte a = 0;
 						byte r = bytes[ind];
 						byte g = bytes[ind+height*width];
@@ -127,12 +134,13 @@ public class ImageReader implements MouseListener, MouseMotionListener
 				frames[f] = img;
 				// get next frame from input stream
 				if (vidFlag) {
-					bytes = new byte[1555200];
-					offset = 0;
-			        numRead = 0;
-			        while (offset < bytes.length && (numRead=is.read(bytes, offset, bytes.length-offset)) >= 0) {
-			        	offset += numRead;
-			        }
+					ind = ind + height*width*2 - 1;
+//					bytes = new byte[1555200];
+//					offset = 0;
+//			        numRead = 0;
+//			        while (offset < bytes.length && (numRead=is.read(bytes, offset, bytes.length-offset)) >= 0) {
+//			        	offset += numRead;
+//			        }
 				}
 	        }
 			
@@ -164,7 +172,7 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	    System.out.println(wTiles);
 	    System.out.println(hTiles);
 	    
-	   tiles = splitImage();
+	   //splitImage();
 	    
 	    // Use a label to display the image
 	    frame = new JFrame();
@@ -210,25 +218,25 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	   original.add(label, BorderLayout.CENTER);
 	   cards.add(original, ORIGINAL);
 	   
-	   // split image panel
-	   tiled = new JPanel();
-	   GridLayout tiledLayout = new GridLayout(hTiles, wTiles, 5, 5);
-	   tiled.setLayout(tiledLayout);
-	   for (int i = 0; i < tiles.length; ++i) {
-		   BufferedImage tile = new BufferedImage(tiles[i].width, tiles[i].height, BufferedImage.TYPE_INT_RGB);
-		   
-		   Graphics2D gTile = tile.createGraphics();
-		   gTile.drawImage(frames[0], 0, 0, tiles[i].width, tiles[i].height, 
-				   tiles[i].leftCornerX, tiles[i].leftCornerY,
-				   tiles[i].rightCornerX, tiles[i].rightCornerY, null);
-		   gTile.dispose();		   
-		   label = new JLabel(new ImageIcon(tile));
-		   label.setPreferredSize(new Dimension(tile.getWidth(), tile.getHeight()));
-		   tiled.add(label);   
-	   }
-	   tiled.addMouseListener(this);
-	   tiled.addMouseMotionListener(this);
-	   cards.add(tiled, TILED);
+//	   // split image panel
+//	   tiled = new JPanel();
+//	   GridLayout tiledLayout = new GridLayout(hTiles, wTiles, 5, 5);
+//	   tiled.setLayout(tiledLayout);
+//	   for (int i = 0; i < tiles.length; ++i) {
+//		   BufferedImage tile = new BufferedImage(tiles[i].width, tiles[i].height, BufferedImage.TYPE_INT_RGB);
+//		   
+//		   Graphics2D gTile = tile.createGraphics();
+//		   gTile.drawImage(frames[0], 0, 0, tiles[i].width, tiles[i].height, 
+//				   tiles[i].leftCornerX, tiles[i].leftCornerY,
+//				   tiles[i].rightCornerX, tiles[i].rightCornerY, null);
+//		   gTile.dispose();		   
+//		   label = new JLabel(new ImageIcon(tile));
+//		   label.setPreferredSize(new Dimension(tile.getWidth(), tile.getHeight()));
+//		   tiled.add(label);   
+//	   }
+//	   tiled.addMouseListener(this);
+//	   tiled.addMouseMotionListener(this);
+//	   cards.add(tiled, TILED);
 
 	   
 	   pane.add(cards, BorderLayout.CENTER); // add to main pane
@@ -256,12 +264,12 @@ public class ImageReader implements MouseListener, MouseMotionListener
    }
    
    // split image into tiles
-   public Tile[] splitImage() {
+   public void splitImage() {
 	   int w = frames[0].getWidth();
 	   int h = frames[0].getHeight();
 	   
 	   //BufferedImage mtiles[] = new BufferedImage[wTiles * hTiles];
-	   Tile mTiles[] = new Tile[wTiles * hTiles];
+	   tiles = new Tile[wTiles * hTiles];
 	   
 	   // dimensions of each tile
 	   int tileW = w / wTiles;
@@ -275,19 +283,38 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	  int i = 0; // index for tiles array
 	   for (int y = 0; y < hTiles; ++y) {
 		   for (int x = 0; x < wTiles; ++x) {
-			   mTiles[i] = new Tile();
-			   mTiles[i].width = tileW;
-			   mTiles[i].height = tileH;
-			   mTiles[i].leftCornerX = x * tileW;
-			   mTiles[i].leftCornerY = y * tileH;
-			   mTiles[i].rightCornerX = x * tileW + tileW;
-			   mTiles[i].rightCornerY = y * tileH + tileH;
+			   tiles[i] = new Tile();
+			   tiles[i].width = tileW;
+			   tiles[i].height = tileH;
+			   tiles[i].leftCornerX = x * tileW;
+			   tiles[i].leftCornerY = y * tileH;
+			   tiles[i].rightCornerX = x * tileW + tileW;
+			   tiles[i].rightCornerY = y * tileH + tileH;
 			   
 			   ++i; // increment i
 		   }
 	   }
    
-	   return mTiles;
+	   // split image panel
+	   tiled = new JPanel();
+	   GridLayout tiledLayout = new GridLayout(hTiles, wTiles, 5, 5);
+	   tiled.setLayout(tiledLayout);
+	   for (i = 0; i < tiles.length; ++i) {
+		   BufferedImage tile = new BufferedImage(tiles[i].width, tiles[i].height, BufferedImage.TYPE_INT_RGB);
+		   
+		   Graphics2D gTile = tile.createGraphics();
+		   gTile.drawImage(frames[0], 0, 0, tiles[i].width, tiles[i].height, 
+				   tiles[i].leftCornerX, tiles[i].leftCornerY,
+				   tiles[i].rightCornerX, tiles[i].rightCornerY, null);
+		   gTile.dispose();		   
+		   JLabel label = new JLabel(new ImageIcon(tile));
+		   label.setPreferredSize(new Dimension(tile.getWidth(), tile.getHeight()));
+		   tiled.add(label);   
+	   }
+	   tiled.addMouseListener(this);
+	   tiled.addMouseMotionListener(this);
+	   cards.add(tiled, TILED);
+	  // return mTiles;
    }
     
    // jumble image
@@ -425,6 +452,7 @@ public class ImageReader implements MouseListener, MouseMotionListener
 		if (name.equals("Split"))
 		{
 			System.out.println("Split");
+			splitImage();
 			c.show(cards, TILED);
 		} else if (name.equals("Initialize"))
 		{
@@ -553,17 +581,17 @@ public class ImageReader implements MouseListener, MouseMotionListener
 	class refreshFrame implements ActionListener {
 		public void actionPerformed(ActionEvent e) {
 			++currFrame;
-			if (currFrame == 1000) {
+			if (currFrame == 100) {
 				currFrame = 0;
 			}
-			original.removeAll();
-		   JLabel label = new JLabel(new ImageIcon(frames[currFrame]));
-		   label.setPreferredSize(new Dimension(frames[currFrame].getWidth(), frames[currFrame].getHeight()));
-		   original.add(label, BorderLayout.CENTER);
-		   cards.add(original, ORIGINAL);
-		   original.revalidate();
-		   original.repaint();
-	//	   c.show(cards, ORIGINAL);
+//			original.removeAll();
+//		   JLabel label = new JLabel(new ImageIcon(frames[currFrame]));
+//		   label.setPreferredSize(new Dimension(frames[currFrame].getWidth(), frames[currFrame].getHeight()));
+//		   original.add(label, BorderLayout.CENTER);
+//		   cards.add(original, ORIGINAL);
+//		   original.revalidate();
+//		   original.repaint();
+//	//	   c.show(cards, ORIGINAL);
 		   System.out.println("Frame:" + currFrame);
 		}
 	}
